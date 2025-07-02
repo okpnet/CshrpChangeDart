@@ -12,4 +12,8 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EditorConfigFiles Remove="C:\Users\htakahashi\Documents\GitRep\CshrpChangeDart\CshrpModelToDartModel\CshrpModelToDartModel\Parsers\.editorconfig" />
+  </ItemGroup>
+
 </Project>

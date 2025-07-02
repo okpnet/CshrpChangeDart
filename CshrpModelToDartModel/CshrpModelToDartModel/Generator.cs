@@ -1,4 +1,5 @@
 ﻿using CshrpModelToDartModel.Converters;
+using CshrpModelToDartModel.Dtos;
 using CshrpModelToDartModel.Extensions;
 
 namespace CshrpModelToDartModel
@@ -16,21 +17,23 @@ namespace CshrpModelToDartModel
                     return false;
                 }
 
+                var csContents = new List<ClassModel>();
                 foreach (var filePath in filePaths)
                 {
                     // Read the C# file content
-                    var csContent = Analyser.Build(inputPath);
-                    var dartFreezedConverter = new ConvertToDartFreezed(csContent.Select(t=>t.NameSpace));
-                    // Convert C# content to Dart content (this is a placeholder for actual conversion logic)
-                    foreach (var classModel in csContent)
-                    {
-                        var dirpath=PathHelper.NamespaceToDirictory(outputPath, classModel.NameSpace);
-                        var outputFilePath = System.IO.Path.Combine(dirpath, $"{classModel.ClassName.PascalToSnake()}.dart");
-                        
-                        // Assuming you have a method to convert ClassModel to Dart content
-                        var dartContent = dartFreezedConverter.Build(classModel);
-                        System.IO.File.WriteAllText(outputFilePath, dartContent);
-                    }
+                    var csContent = Analyser.Build(filePath);
+                    csContents.AddRange(csContent);
+                }
+                var classNames = csContents.Select(t => t.ClassName);
+                foreach (var csContent in csContents)
+                {
+                    var dartFreezedConverter = new ConvertToDartFreezed(classNames);
+                    var dirpath = PathHelper.NamespaceToDirictory(outputPath, csContent.NameSpace);
+                    var outputFilePath = System.IO.Path.Combine(dirpath, $"{csContent.ClassName.PascalToSnake()}.dart");
+
+                    // Assuming you have a method to convert ClassModel to Dart content
+                    var dartContent = dartFreezedConverter.Build(csContent);
+                    System.IO.File.WriteAllText(outputFilePath, dartContent);
                 }
 
                 return true;

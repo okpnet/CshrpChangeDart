@@ -1,4 +1,4 @@
-﻿using CshrpModelToDartModel.Dtos;
+﻿using CshrpModelToDartModel.Parsers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 namespace CshrpModelToDartModel.Converters
 {
-    public abstract class ConvertBase
+    public interface ITypeNameMappings
     {
-
-        public abstract string Build(ClassModel classModel);
+        Func<PropertyTypeNode, string> GetMapper(Dictionary<string, string> map);
     }
 }
