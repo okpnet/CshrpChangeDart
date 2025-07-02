@@ -73,7 +73,7 @@ namespace CshrpModelToDartModel.Converters
                 if (t.ArrayTypes == ArrayType.None)
                 {
                     return _dartType.ContainsKey(t.TypeName) ? _dartType[t.TypeName] :
-                            _classNames.Contains(t.TypeName) ? t.TypeName : "dynamic";
+                            _classNames.Where(x=>t.TypeName.StartsWith(x)).Count()!=0 ? t.TypeName : "dynamic";
                 }
                 return t.ArrayTypes switch
                 {
