@@ -66,7 +66,7 @@ namespace CshrpModelToDartModel.Converters
 
         private string CreateProperty(PropertyModel propertyModel)
         {
-            var parse = PropertyTypeParser.Parse(propertyModel.Type);
+            var parse = PropertyTypeParser.ParseType(propertyModel.Type);
             if (parse is null) return string.Empty;
             var visitor = new TypeVisitor(t =>
             {

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using Sprache;
+using System.Text;
 
 namespace CshrpModelToDartModel.Parsers
 {
@@ -14,98 +15,61 @@ namespace CshrpModelToDartModel.Parsers
             "Dictionary","ReadOnlyDictionary","IDictionary","IReadOnlyDictionary"
         };
 
-        public static PropertyTypeNode Parse(string input)
+        // 識別子：型名（例: string, int, List, Dictionary）
+        private static readonly Parser<string> Identifier =
+            from leading in Parse.WhiteSpace.Many()
+            from first in Parse.Letter.Once().Text()
+            from rest in Parse.LetterOrDigit.Or(Parse.Char('_')).Many().Text()
+            from trailing in Parse.WhiteSpace.Many()
+            select first + rest;
+
+        // Nullable対応: string? や int? に対応する型名と IsNullable フラグ
+        private static readonly Parser<(string name, bool isNullable)> IdentifierWithNullable =
+            from baseName in Identifier
+            from nullable in Parse.Char('?').Optional()
+            select (baseName, nullable.IsDefined);
+
+        // Generic: <T1, T2>
+        private static readonly Parser<IEnumerable<PropertyTypeNode>> GenericArgs =
+            from lt in Parse.Char('<').Token()
+            from args in Parse.Ref(() => TypeExpr).DelimitedBy(Parse.Char(',').Token())
+            from gt in Parse.Char('>').Token()
+            select args;
+
+        // TypeExpr: 型の本体。再帰構文のため遅延定義。
+        private static readonly Parser<PropertyTypeNode> TypeExpr =
+            (from typeNameInfo in IdentifierWithNullable
+             from genericArgs in GenericArgs.Optional()
+             from arraySuffix in Parse.String("[]").Optional()
+             select CreateNode(typeNameInfo.name, typeNameInfo.isNullable, genericArgs.GetOrDefault(), arraySuffix.IsDefined)
+            ).Token();
+
+        public static PropertyTypeNode ParseType(string input)
+            => TypeExpr.End().Parse(input);
+
+        // ノード作成ロジック
+        private static PropertyTypeNode CreateNode(string typeName, bool isNullable, IEnumerable<PropertyTypeNode>? genericArgs, bool isArray)
         {
-            var tokens = Tokenize(input);
-            var enumerator = tokens.GetEnumerator();
-            if (!enumerator.MoveNext()) throw new FormatException("Empty input.");
-            return ParseNode(enumerator, null);
+            var argsArray = genericArgs?.ToArray() ?? [];
+
+            var arrayType = isArray ? ArrayType.Array :
+                            _collectionTypeNames.Contains(typeName) ? ArrayType.Collection :
+                            _dictionaryTypeNames.Contains(typeName) ? ArrayType.Collection : // ← DictionaryもCollection扱い
+                            ArrayType.None;
+
+            return new PropertyTypeNode
+            {
+                TypeName = typeName,
+                IsNullable = isNullable,
+                IsGeneric = argsArray.Length > 0,
+                ChildPropertyTypeNodes = argsArray,
+                ArrayTypes = arrayType
+            };
         }
 
-        private static PropertyTypeNode ParseNode(IEnumerator<string> tokens, PropertyTypeNode? parent)
-        {
-            var node = new PropertyTypeNode { Parent = parent };
+        // Sprache Optional<T>拡張
+        private static T? GetOrDefault<T>(this IOption<T> option)
+            => option.IsDefined ? option.Get() : default;
 
-            var current = tokens.Current ?? throw new FormatException("Expected type name");
-
-            // Handle array suffix like `string[]`
-            if (current.EndsWith("[]"))
-            {
-                node.TypeName = current[..^2]; // Remove []
-                node.ArrayTypes = ArrayType.Array;
-            }
-            else
-            {
-                node.TypeName = current;
-            }
-
-            if (_collectionTypeNames.Contains(node.TypeName))
-            {
-                node.ArrayTypes = ArrayType.Collection;
-            }
-            else if (_dictionaryTypeNames.Contains(node.TypeName))
-            {
-                node.ArrayTypes |= ArrayType.Map;
-            }
-
-            if (tokens.MoveNext() && tokens.Current == "<")
-            {
-                var children = new List<PropertyTypeNode>();
-                node.IsGeneric = true;
-                while (tokens.MoveNext())
-                {
-                    if (tokens.Current == ">")
-                        break;
-
-                    if (tokens.Current == ",")
-                        continue;
-
-                    var child = ParseNode(tokens, node);
-                    children.Add(child);
-                }
-
-                node.ChildPropertyTypeNodes = children.ToArray();
-            }
-
-            return node;
-        }
-
-        private static List<string> Tokenize(string input)
-        {
-            var tokens = new List<string>();
-            var sb = new StringBuilder();
-            int depth = 0;
-
-            for (int i = 0; i < input.Length; i++)
-            {
-                char ch = input[i];
-
-                if (ch == '<' || ch == '>' || ch == ',')
-                {
-                    if (sb.Length > 0)
-                    {
-                        tokens.Add(sb.ToString().Trim());
-                        sb.Clear();
-                    }
-                    tokens.Add(ch.ToString());
-                }
-                else if (ch == '[' && i + 1 < input.Length && input[i + 1] == ']')
-                {
-                    sb.Append("[]");
-                    i++; // skip the next ']'
-                }
-                else
-                {
-                    sb.Append(ch);
-                }
-            }
-
-            if (sb.Length > 0)
-            {
-                tokens.Add(sb.ToString().Trim());
-            }
-
-            return tokens;
-        }
     }
 }

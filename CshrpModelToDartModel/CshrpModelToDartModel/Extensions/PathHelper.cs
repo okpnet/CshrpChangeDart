@@ -11,7 +11,7 @@ namespace CshrpModelToDartModel.Extensions
         public static string NamespaceToDirictory(string path, string nameSpace)
         {
             if (string.IsNullOrEmpty(nameSpace)) return path;
-            var parts = nameSpace.Split('/').Skip(1);
+            var parts = nameSpace.Split('.').Skip(1);
             foreach (var part in parts)
             {
                 path = System.IO.Path.Combine(path, part);

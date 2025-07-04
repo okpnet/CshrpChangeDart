@@ -39,6 +39,11 @@ namespace CshrpModelToDartModel.Parsers
                 sb.Append("[]");
             }
 
+            if (node.IsNullable)
+            {
+                sb.Append("?");
+            }
+
             return sb.ToString();
         }
     }
